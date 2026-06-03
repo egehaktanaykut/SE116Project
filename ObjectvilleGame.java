@@ -289,4 +289,49 @@ public class ObjectvilleGame {
         }
         return Math.max(1, zone.prevOutput);
     }
+    private int calculateM(Zone zone) {
+        if (zone.type == HOUSING || zone.type == COMMERCIAL) {
+            int min = zone.electricity;
+            if (zone.water < min) min = zone.water;
+            if (zone.internet < min) min = zone.internet;
+            return min;
+        }
+        if (zone.type == INDUSTRIAL) {
+            return Math.min(zone.electricity, zone.water);
+        }
+        return 0;
+    }
+    private void distributeResources() {
+        int industrialCommercialCount = 0, commercialCount = 0, housingCount = 0;
+
+        for (Zone zone : activeZones) {
+            if (zone.type == INDUSTRIAL || zone.type == COMMERCIAL) industrialCommercialCount++;
+            if (zone.type == COMMERCIAL) commercialCount++;
+            if (zone.type == HOUSING) housingCount++;
+
+            zone.populationReceived = 0;
+            zone.goodsReceived = 0;
+            zone.lifestyleReceived = 0;
+        }
+        int perPopulationZone = (industrialCommercialCount > 0) ? totalPopulation / industrialCommercialCount : 0;
+        int perGoodsZone = (commercialCount > 0) ? totalGoods / commercialCount : 0;
+        int perLifestyleZone = (housingCount > 0) ? totalLifestyle / housingCount : 0;
+
+        for (Zone zone : activeZones) {
+            if (zone.type == INDUSTRIAL || zone.type == COMMERCIAL) {
+                if (perPopulationZone > 0) {
+                    zone.populationReceived = perPopulationZone;
+                    System.out.println(getZoneName(zone) + " at (" + zone.row + "," + zone.col + ") received " + perPopulationZone + " population");
+                }
+            }
+
+            if (zone.type == COMMERCIAL) {
+                if (perGoodsZone > 0) {
+                    zone.goodsReceived = perGoodsZone;
+                    System.out.println(getZoneName(zone) + " at (" + zone.row + "," + zone.col + ") received " + perGoodsZone + " goods");
+                }
+            }
 }
+    }
+}
+
