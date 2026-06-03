@@ -151,4 +151,50 @@ public class ObjectvilleGame {
             }
         }
     }
+    public void runSimulation(int ticks) {
+        for (int tick = 1; tick <= ticks; tick++) {
+            System.out.println("Tick " + tick);
+
+            provideServices();
+            distributeUtilities();
+
+            if (tick > 1) {
+                distributeResources();
+            }
+
+            updateZones(tick);
+            accumulateProduction();
+        }
+    }
+
+    private void provideServices() {
+        for (int r = 0; r < rows; r++) {
+            for (int c = 0; c < cols; c++) {
+                grid[r][c].hasSecurity = false;
+                grid[r][c].hasHealth = false;
+                grid[r][c].hasEducation = false;
+            }
+        }
+
+        for (ServiceBuilding service : services) {
+            for (Zone zone : activeZones) {
+                if (service.euclideanDistance(zone) <= service.radius) {
+                    if (service.type == SCHOOL) {
+                        zone.hasEducation = true;
+                        if (zone.type == HOUSING) {
+                            System.out.println(getZoneName(zone) + " at (" + zone.row + "," + zone.col + ") received education service");
+                        }
+                    } else if (service.type == POLICE_STATION) {
+                        zone.hasSecurity = true;
+                        System.out.println(getZoneName(zone) + " at (" + zone.row + "," + zone.col + ") received security service");
+                    } else if (service.type == HOSPITAL) {
+                        zone.hasHealth = true;
+                        if (zone.type == HOUSING) {
+                            System.out.println(getZoneName(zone) + " at (" + zone.row + "," + zone.col + ") received health service");
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
