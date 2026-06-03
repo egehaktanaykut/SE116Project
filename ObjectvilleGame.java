@@ -197,4 +197,96 @@ public class ObjectvilleGame {
             }
         }
     }
+    private void distributeUtilities() {
+        for (int r = 0; r < rows; r++) {
+            for (int c = 0; c < cols; c++) {
+                grid[r][c].electricity = 0;
+                grid[r][c].water = 0;
+                grid[r][c].internet = 0;
+            }
+        }
+
+        for (char utility : UTILITY_ORDER) {
+            List<UtilityProvider> providers;
+            if (utility == INTERNET) providers = internetHubs;
+            else if (utility == WATER) providers = waterPumps;
+            else providers = powerPlants;
+
+            for (UtilityProvider provider : providers) {
+                int remainingCapacity = CAPACITY;
+                Set<String> visited = new HashSet<>();
+                Queue<Zone> queue = new LinkedList<>();
+
+                Zone startNode = grid[provider.row][provider.col];
+                queue.add(startNode);
+                visited.add(startNode.getKey());
+
+                int[] dr = {-1, 1, 0, 0};
+                int[] dc = {0, 0, -1, 1};
+
+                while (!queue.isEmpty() && remainingCapacity > 0) {
+                    Zone current = queue.poll();
+                    int demand = calculateDemand(current, utility);
+                    int alreadyReceived = 0;
+
+                    if (utility == INTERNET) alreadyReceived = current.internet;
+                    else if (utility == WATER) alreadyReceived = current.water;
+                    else alreadyReceived = current.electricity;
+
+                    int actualDemand = Math.max(0, demand - alreadyReceived);
+
+                    if (actualDemand > 0) {
+                        int deliver = Math.min(actualDemand, remainingCapacity);
+
+                        if (utility == INTERNET) {
+                            current.internet += deliver;
+                        } else if (utility == WATER) {
+                            current.water += deliver;
+                        } else {
+                            current.electricity += deliver;
+                        }
+
+                        remainingCapacity -= deliver;
+
+                        if (current.type == HOUSING || current.type == COMMERCIAL || current.type == INDUSTRIAL) {
+                            String utilityName = (utility == INTERNET) ? "internet" : (utility == WATER) ? "water" : "electricity";
+                            System.out.println(getZoneName(current) + " at (" + current.row + "," + current.col + ") received " + deliver + " " + utilityName);
+                        }
+                    }
+
+                    if (remainingCapacity <= 0) break;
+
+                    for (int i = 0; i < 4; i++) {
+                        int nr = current.row + dr[i];
+                        int nc = current.col + dc[i];
+                        if (nr >= 0 && nr < rows && nc >= 0 && nc < cols) {
+                            Zone neighbor = grid[nr][nc];
+                            String key = neighbor.getKey();
+                            if (!visited.contains(key) && isRoadOrZone(neighbor)) {
+                                visited.add(key);
+                                queue.add(neighbor);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    private boolean isRoadOrZone(Zone zone) {
+        return zone.type == ROAD || zone.type == HOUSING ||
+                zone.type == INDUSTRIAL || zone.type == COMMERCIAL;
+    }
+
+    private int calculateDemand(Zone zone, char utility) {
+        if (zone.type == ROAD || zone.type == EMPTY ||
+                zone.type == SCHOOL || zone.type == POLICE_STATION ||
+                zone.type == HOSPITAL || zone.type == POWER ||
+                zone.type == WATER || zone.type == INTERNET) {
+            return 0;
+        }
+        if (zone.type == INDUSTRIAL && utility == INTERNET) {
+            return 0;
+        }
+        return Math.max(1, zone.prevOutput);
+    }
 }
