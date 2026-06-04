@@ -394,5 +394,35 @@ public class ObjectvilleGame {
             zone.prevOutput = output;
         }
     }
+    private void accumulateProduction() {
+        totalPopulation = 0;
+        totalGoods = 0;
+        totalLifestyle = 0;
+        for (Zone zone : activeZones) {
+            if (zone.type == HOUSING)         totalPopulation += zone.prevOutput;
+            else if (zone.type == INDUSTRIAL)  totalGoods += zone.prevOutput;
+            else if (zone.type == COMMERCIAL)  totalLifestyle += zone.prevOutput;
+        }
+    }
+
+    public static void main(String[] args) {
+        if (args.length < 2) return;
+        try {
+            ObjectvilleGame game = new ObjectvilleGame(args[0]);
+            game.runSimulation(Integer.parseInt(args[1]));
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
 }
+
+
+
+
+
+
+
+
+
+
 
