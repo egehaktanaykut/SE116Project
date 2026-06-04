@@ -333,5 +333,66 @@ public class ObjectvilleGame {
             }
 }
     }
+    private void updateZones(int tick) {
+        for (Zone zone : activeZones) {
+            int oldLevel = zone.level;
+            int m = calculateM(zone);
+
+            boolean canLevelUp1 = (m > 0);
+
+            boolean canLevelUp2 = canLevelUp1 && zone.level >= 1 &&
+                    (zone.type == HOUSING ? (zone.hasSecurity && zone.hasHealth && zone.hasEducation) : zone.hasSecurity);
+
+            boolean canLevelUp3 = canLevelUp2 && zone.level >= 2 &&
+                    (zone.type == HOUSING ? zone.lifestyleReceived > 0 :
+                            (zone.type == INDUSTRIAL ? zone.populationReceived > 0 :
+                                    (zone.populationReceived > 0 && zone.goodsReceived > 0)));
+
+            if (m == 0) {
+                zone.level = 0;
+            } else {
+                boolean staysOrRises = false;
+                if (zone.level == 0 && canLevelUp1) {
+                    zone.level = 1; staysOrRises = true;
+                } else if (zone.level == 1) {
+                    if (canLevelUp2) { zone.level = 2; staysOrRises = true; }
+                    else if (canLevelUp1) { staysOrRises = true; }
+                } else if (zone.level == 2) {
+                    if (canLevelUp3) { zone.level = 3; staysOrRises = true; }
+                    else if (canLevelUp2) { staysOrRises = true; }
+                } else if (zone.level == 3) {
+                    if (canLevelUp3) { staysOrRises = true; }
+                }
+
+                if (!staysOrRises && zone.level > 0) {
+                    zone.level--;
+                }
+            }
+
+            int output = 0;
+            if (m > 0) {
+                if (zone.level == 1) {
+                    output = m;
+                } else if (zone.level == 2) {
+                    output = 2 * m;
+                } else if (zone.level == 3) {
+                    if (zone.type == HOUSING)         output = 2 * m + zone.lifestyleReceived;
+                    else if (zone.type == INDUSTRIAL)  output = 2 * m + zone.populationReceived;
+                    else if (zone.type == COMMERCIAL)  output = 2 * m + Math.min(zone.populationReceived, zone.goodsReceived);
+                }
+            }
+
+            String outputName = (zone.type == HOUSING) ? "population" : (zone.type == INDUSTRIAL) ? "goods" : "lifestyle";
+            System.out.println(getZoneName(zone) + " at (" + zone.row + "," + zone.col + ") generated " + output + " " + outputName);
+
+            if (zone.level != oldLevel) {
+                System.out.println(getZoneName(zone) + " at (" + zone.row + "," + zone.col + ") levels "
+                        + (zone.level > oldLevel ? "up" : "down")
+                        + " from " + oldLevel + " to " + zone.level);
+            }
+
+            zone.prevOutput = output;
+        }
+    }
 }
 
