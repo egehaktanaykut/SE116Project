@@ -20,7 +20,12 @@ public class ObjectvilleGame {
     private static final int POLICE_RADIUS = 5;
     private static final int HOSPITAL_RADIUS = 3;
 
-    static class Zone {
+    interface Locatable {
+        String getKey();
+        double euclideanDistance(Zone other);
+    }
+
+    static class Zone implements Locatable {
         char type;
         int level = 0;
         int row, col;
@@ -45,23 +50,41 @@ public class ObjectvilleGame {
             this.type = type;
         }
 
-        double euclideanDistance(Zone other) {
+        @Override
+        public double euclideanDistance(Zone other) {
             double dRow = other.row - this.row;
             double dCol = other.col - this.col;
             return Math.sqrt(dRow * dRow + dCol * dCol);
         }
 
-        String getKey() {
+        @Override
+        public String getKey() {
             return row + "," + col;
         }
     }
 
-    static class ServiceBuilding extends Zone {
+    abstract static class ServiceBuilding extends Zone {
         int radius;
         ServiceBuilding(int row, int col, char type, int radius) {
             super(row, col, type);
             this.radius = radius;
         }
+        abstract String getServiceName();
+    }
+
+    static class School extends ServiceBuilding {
+        School(int row, int col) { super(row, col, SCHOOL, SCHOOL_RADIUS); }
+        @Override String getServiceName() { return "Education"; }
+    }
+
+    static class PoliceStation extends ServiceBuilding {
+        PoliceStation(int row, int col) { super(row, col, POLICE_STATION, POLICE_RADIUS); }
+        @Override String getServiceName() { return "Security"; }
+    }
+
+    static class Hospital extends ServiceBuilding {
+        Hospital(int row, int col) { super(row, col, HOSPITAL, HOSPITAL_RADIUS); }
+        @Override String getServiceName() { return "Health"; }
     }
 
     static class UtilityProvider extends Zone {
@@ -122,13 +145,13 @@ public class ObjectvilleGame {
 
                 Zone zone;
                 if (cellChar == SCHOOL) {
-                    zone = new ServiceBuilding(r, c, cellChar, SCHOOL_RADIUS);
+                    zone = new School(r, c);
                     services.add((ServiceBuilding) zone);
                 } else if (cellChar == POLICE_STATION) {
-                    zone = new ServiceBuilding(r, c, cellChar, POLICE_RADIUS);
+                    zone = new PoliceStation(r, c);
                     services.add((ServiceBuilding) zone);
                 } else if (cellChar == HOSPITAL) {
-                    zone = new ServiceBuilding(r, c, cellChar, HOSPITAL_RADIUS);
+                    zone = new Hospital(r, c);
                     services.add((ServiceBuilding) zone);
                 } else if (cellChar == POWER) {
                     zone = new UtilityProvider(r, c, cellChar);
@@ -151,6 +174,7 @@ public class ObjectvilleGame {
             }
         }
     }
+
     public void runSimulation(int ticks) {
         for (int tick = 1; tick <= ticks; tick++) {
             System.out.println("Tick " + tick);
@@ -197,6 +221,7 @@ public class ObjectvilleGame {
             }
         }
     }
+
     private void distributeUtilities() {
         for (int r = 0; r < rows; r++) {
             for (int c = 0; c < cols; c++) {
@@ -272,6 +297,7 @@ public class ObjectvilleGame {
             }
         }
     }
+
     private boolean isRoadOrZone(Zone zone) {
         return zone.type == ROAD || zone.type == HOUSING ||
                 zone.type == INDUSTRIAL || zone.type == COMMERCIAL;
@@ -289,6 +315,7 @@ public class ObjectvilleGame {
         }
         return Math.max(1, zone.prevOutput);
     }
+
     private int calculateM(Zone zone) {
         if (zone.type == HOUSING || zone.type == COMMERCIAL) {
             int min = zone.electricity;
@@ -301,6 +328,7 @@ public class ObjectvilleGame {
         }
         return 0;
     }
+
     private void distributeResources() {
         int industrialCommercialCount = 0, commercialCount = 0, housingCount = 0;
 
@@ -313,6 +341,7 @@ public class ObjectvilleGame {
             zone.goodsReceived = 0;
             zone.lifestyleReceived = 0;
         }
+
         int perPopulationZone = (industrialCommercialCount > 0) ? totalPopulation / industrialCommercialCount : 0;
         int perGoodsZone = (commercialCount > 0) ? totalGoods / commercialCount : 0;
         int perLifestyleZone = (housingCount > 0) ? totalLifestyle / housingCount : 0;
@@ -331,18 +360,24 @@ public class ObjectvilleGame {
                     System.out.println(getZoneName(zone) + " at (" + zone.row + "," + zone.col + ") received " + perGoodsZone + " goods");
                 }
             }
-}
+
+            if (zone.type == HOUSING) {
+                if (perLifestyleZone > 0) {
+                    zone.lifestyleReceived = perLifestyleZone;
+                    System.out.println(getZoneName(zone) + " at (" + zone.row + "," + zone.col + ") received " + perLifestyleZone + " lifestyle");
+                }
+            }
+        }
     }
+
     private void updateZones(int tick) {
         for (Zone zone : activeZones) {
             int oldLevel = zone.level;
             int m = calculateM(zone);
 
             boolean canLevelUp1 = (m > 0);
-
             boolean canLevelUp2 = canLevelUp1 && zone.level >= 1 &&
                     (zone.type == HOUSING ? (zone.hasSecurity && zone.hasHealth && zone.hasEducation) : zone.hasSecurity);
-
             boolean canLevelUp3 = canLevelUp2 && zone.level >= 2 &&
                     (zone.type == HOUSING ? zone.lifestyleReceived > 0 :
                             (zone.type == INDUSTRIAL ? zone.populationReceived > 0 :
@@ -376,9 +411,9 @@ public class ObjectvilleGame {
                 } else if (zone.level == 2) {
                     output = 2 * m;
                 } else if (zone.level == 3) {
-                    if (zone.type == HOUSING)         output = 2 * m + zone.lifestyleReceived;
-                    else if (zone.type == INDUSTRIAL)  output = 2 * m + zone.populationReceived;
-                    else if (zone.type == COMMERCIAL)  output = 2 * m + Math.min(zone.populationReceived, zone.goodsReceived);
+                    if (zone.type == HOUSING)    output = 2 * m + zone.lifestyleReceived;
+                    else if (zone.type == INDUSTRIAL) output = 2 * m + zone.populationReceived;
+                    else if (zone.type == COMMERCIAL) output = 2 * m + Math.min(zone.populationReceived, zone.goodsReceived);
                 }
             }
 
@@ -394,14 +429,15 @@ public class ObjectvilleGame {
             zone.prevOutput = output;
         }
     }
+
     private void accumulateProduction() {
         totalPopulation = 0;
         totalGoods = 0;
         totalLifestyle = 0;
         for (Zone zone : activeZones) {
-            if (zone.type == HOUSING)         totalPopulation += zone.prevOutput;
-            else if (zone.type == INDUSTRIAL)  totalGoods += zone.prevOutput;
-            else if (zone.type == COMMERCIAL)  totalLifestyle += zone.prevOutput;
+            if (zone.type == HOUSING)    totalPopulation += zone.prevOutput;
+            else if (zone.type == INDUSTRIAL) totalGoods += zone.prevOutput;
+            else if (zone.type == COMMERCIAL) totalLifestyle += zone.prevOutput;
         }
     }
 
@@ -415,14 +451,3 @@ public class ObjectvilleGame {
         }
     }
 }
-
-
-
-
-
-
-
-
-
-
-
